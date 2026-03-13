@@ -1,0 +1,357 @@
+/* ============================================================
+   KI-Assistenzsystem – Stylesheet
+   Design: Seriös, schlicht, modern, behördentauglich
+   ============================================================ */
+
+/* --- Grundlagen --- */
+:root {
+    --primary: #1a3a5c;       /* Dunkles Blau – seriös, behördlich */
+    --primary-light: #2c5282;
+    --accent: #2b6cb0;
+    --bg: #f5f7fa;
+    --card-bg: #ffffff;
+    --text: #1a202c;
+    --text-light: #4a5568;
+    --border: #d2d6dc;
+    --error: #c53030;
+    --error-bg: #fff5f5;
+    --success: #276749;
+    --warning-bg: #fffbeb;
+    --warning-border: #d69e2e;
+    --radius: 6px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Header --- */
+header {
+    background: var(--primary);
+    color: white;
+    padding: 1.5rem 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.header-content {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-icon {
+    font-size: 2rem;
+    opacity: 0.9;
+}
+
+header h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.subtitle {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin-top: 0.2rem;
+}
+
+/* --- Main --- */
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    width: 100%;
+    flex: 1;
+}
+
+/* --- Prototyp-Banner --- */
+.prototype-banner {
+    background: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    border-left: 4px solid var(--warning-border);
+    border-radius: var(--radius);
+    padding: 0.8rem 1rem;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    color: #744210;
+}
+
+/* --- Karten --- */
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.card h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid var(--bg);
+}
+
+/* --- Formular --- */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    transition: border-color 0.2s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
+}
+
+textarea {
+    resize: vertical;
+}
+
+/* --- Buttons --- */
+.button-row {
+    display: flex;
+    gap: 0.7rem;
+    margin-top: 1.2rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-light);
+}
+
+.btn-secondary {
+    background: white;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+}
+
+.btn-secondary:hover {
+    background: #ebf4ff;
+}
+
+.btn-disabled {
+    background: #e2e8f0;
+    color: #a0aec0;
+    cursor: not-allowed;
+    font-weight: 400;
+    font-size: 0.85rem;
+}
+
+.btn-copy {
+    background: var(--primary);
+    color: white;
+    font-size: 0.85rem;
+    padding: 0.4rem 1rem;
+}
+
+.btn-copy:hover {
+    background: var(--primary-light);
+}
+
+/* --- Fehlermeldungen --- */
+.error-box {
+    background: var(--error-bg);
+    border: 1px solid #feb2b2;
+    border-left: 4px solid var(--error);
+    border-radius: var(--radius);
+    padding: 0.8rem 1rem;
+    margin-bottom: 1rem;
+    color: var(--error);
+    font-size: 0.9rem;
+}
+
+.error-box ul {
+    margin: 0.3rem 0 0 1.2rem;
+    padding: 0;
+}
+
+.error-box li {
+    margin-bottom: 0.2rem;
+}
+
+/* --- Ausgabebereich --- */
+.output-section {
+    border-color: var(--accent);
+    border-width: 2px;
+}
+
+.output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+}
+
+.output-header h2 {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.ai-notice {
+    background: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    border-radius: var(--radius);
+    padding: 0.7rem 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: #744210;
+}
+
+#output-text {
+    width: 100%;
+    min-height: 300px;
+    padding: 1rem;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #fafbfc;
+    color: var(--text);
+    resize: vertical;
+}
+
+.output-hint {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+/* --- Ladeanzeige --- */
+.btn-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* --- Kopier-Feedback --- */
+.copy-success {
+    background: var(--success) !important;
+}
+
+/* --- Footer --- */
+footer {
+    background: var(--primary);
+    color: rgba(255, 255, 255, 0.8);
+    text-align: center;
+    padding: 1rem 2rem;
+    font-size: 0.85rem;
+    margin-top: auto;
+}
+
+.footer-small {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    margin-top: 0.3rem;
+}
+
+/* --- Responsive --- */
+@media (max-width: 640px) {
+    header {
+        padding: 1rem;
+    }
+
+    header h1 {
+        font-size: 1.1rem;
+    }
+
+    .header-icon {
+        display: none;
+    }
+
+    main {
+        padding: 1rem;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .button-row {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .output-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+}

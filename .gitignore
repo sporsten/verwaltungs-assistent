@@ -1,0 +1,16 @@
+node_modules/
+__pycache__/
+*.pyc
+.env
+*.log
+*_log.txt
+*_output.txt
+temp_*.txt
+tunnel*/
+.claude/
+pip_list.txt
+package.json
+package-lock.json
+create_summary.js
+Projektstudie_Zusammenfassung.docx
+start_mit_tunnel.py
