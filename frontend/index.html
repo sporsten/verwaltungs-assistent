@@ -13,8 +13,8 @@
     <!-- ============================================================ -->
     <header>
         <div class="header-content">
-            <div class="header-icon">&#9881;</div>
-            <div>
+            <img class="header-logo" src="static/lra_logo.jpg" alt="Landratsamt Rosenheim">
+            <div class="header-text">
                 <h1>KI-Assistenzsystem für Verwaltungsdokumente</h1>
                 <p class="subtitle">Prototyp – Projektstudie für den öffentlichen Dienst</p>
             </div>
@@ -22,6 +22,18 @@
     </header>
 
     <main>
+        <!-- ============================================================ -->
+        <!-- COLD-START-HINWEIS (nur sichtbar, wenn der Server gerade aufwacht) -->
+        <!-- ============================================================ -->
+        <div id="wake-banner" class="wake-banner" style="display: none;">
+            <div class="wake-banner-spinner" aria-hidden="true"></div>
+            <div class="wake-banner-text">
+                <strong>Server wird aktiviert &hellip;</strong>
+                Die Demo l&auml;uft auf einem kostenlosen Server, der nach Inaktivit&auml;t in den Schlafmodus wechselt.
+                Bitte ca. <span id="wake-countdown">60</span> Sekunden geduldig sein &ndash; danach reagiert die Anwendung wie gewohnt.
+            </div>
+        </div>
+
         <!-- ============================================================ -->
         <!-- PROTOTYP-HINWEIS -->
         <!-- ============================================================ -->
@@ -44,6 +56,40 @@
                     <option value="telefonnotiz">Telefonnotiz</option>
                     <option value="besprechungsprotokoll">Besprechungsprotokoll</option>
                 </select>
+            </div>
+
+            <!-- Vorlagen -->
+            <div class="template-bar">
+                <div class="template-select-group">
+                    <label for="template-select">Vorlage</label>
+                    <select id="template-select" onchange="loadTemplate()">
+                        <option value="">– Keine Vorlage –</option>
+                    </select>
+                    <button class="btn btn-template-rename" onclick="renameTemplate()" title="Vorlage umbenennen" aria-label="Ausgew&auml;hlte Vorlage umbenennen">&#9998;<span class="visually-hidden"> Vorlage umbenennen</span></button>
+                    <button class="btn btn-template-delete" onclick="deleteTemplate()" title="Vorlage l&ouml;schen" aria-label="Ausgew&auml;hlte Vorlage l&ouml;schen">&#128465;<span class="visually-hidden"> Vorlage l&ouml;schen</span></button>
+                </div>
+                <button class="btn btn-template-save" onclick="openSaveTemplateModal()">&#128190; Als Vorlage speichern</button>
+            </div>
+
+            <!-- Toast-Meldung -->
+            <div id="toast" class="toast" style="display: none;"></div>
+
+            <!-- Vorlage-speichern-Modal -->
+            <div id="template-save-overlay" class="preview-overlay" style="display: none;"
+                 role="dialog" aria-modal="true" aria-labelledby="template-save-title" aria-hidden="true">
+                <div class="template-save-modal">
+                    <h3 id="template-save-title">Vorlage speichern</h3>
+                    <p class="preview-hint">Gib einen Namen f&uuml;r die Vorlage ein. Die aktuellen Formulardaten werden gespeichert.</p>
+                    <div class="form-group">
+                        <label for="template-name-input">Vorlagenname</label>
+                        <input type="text" id="template-name-input" placeholder="z. B. Wochenbesprechung Team 3"
+                               onkeydown="if(event.key==='Enter'){event.preventDefault();saveTemplate();}">
+                    </div>
+                    <div class="preview-buttons">
+                        <button class="btn btn-primary" onclick="saveTemplate()">Speichern</button>
+                        <button class="btn btn-secondary" onclick="closeSaveTemplateModal()">Abbrechen</button>
+                    </div>
+                </div>
             </div>
 
             <!-- Strukturierte Felder -->
@@ -87,13 +133,104 @@
                     Entwurf erstellen
                 </button>
                 <button id="btn-example" class="btn btn-secondary" onclick="loadExample()">
-                    Beispieldaten einfügen
+                    Beispieldaten einf&uuml;gen
                 </button>
-                <button class="btn btn-disabled" disabled title="Dieses Feature ist für Version 2 geplant">
-                    &#127908; Spracheingabe (in Planung)
+                <button id="btn-reset" class="btn btn-reset" onclick="resetForm()" title="Formular leeren und neu beginnen">
+                    &#8634; Formular leeren
+                </button>
+                <button id="btn-speech" class="btn btn-speech" onclick="toggleSpeech()" aria-label="Spracheingabe starten oder stoppen">
+                    &#127908; Spracheingabe
                 </button>
             </div>
+
+            <!-- Spracheingabe-Optionen -->
+            <div class="speech-options">
+                <div class="speech-option-row">
+                    <label for="speech-mode">Sprache einf&#252;gen in:</label>
+                    <select id="speech-mode">
+                        <option value="formular">Ganzes Formular ausf&#252;llen</option>
+                        <option value="notizen">Nur Stichpunkte / Notizen</option>
+                        <option value="schritte">Nur N&#228;chste Schritte</option>
+                    </select>
+                </div>
+                <div class="speech-option-row">
+                    <label>
+                        <input type="checkbox" id="speech-append"> An bestehenden Text anh&#228;ngen
+                    </label>
+                </div>
+                <div class="speech-shortcut-hint">
+                    Tipp: <kbd>Leertaste</kbd> gedr&#252;ckt halten = Push-to-Talk (nur au&#223;erhalb von Textfeldern)
+                </div>
+                <div id="speech-browser-hint" class="speech-browser-hint" style="display: none;">
+                    F&uuml;r die Spracheingabe wird Chrome oder Edge empfohlen. Bei Bedarf bitte in einem dieser Browser &ouml;ffnen.
+                </div>
+            </div>
+
+            <!-- Fortschrittsanzeige -->
+            <div id="speech-progress" class="speech-progress" style="display: none;">
+                <div class="progress-steps">
+                    <div id="step-1" class="progress-step">
+                        <span class="step-icon">&#9711;</span> Sprache erkennen
+                    </div>
+                    <div id="step-2" class="progress-step">
+                        <span class="step-icon">&#9711;</span> Felder extrahieren
+                    </div>
+                    <div id="step-3" class="progress-step">
+                        <span class="step-icon">&#9711;</span> Vorschau anzeigen
+                    </div>
+                </div>
+            </div>
         </section>
+
+        <!-- ============================================================ -->
+        <!-- SPRACH-VORSCHAU -->
+        <!-- ============================================================ -->
+        <div id="speech-preview-overlay" class="preview-overlay" style="display: none;"
+             role="dialog" aria-modal="true" aria-labelledby="speech-preview-title" aria-hidden="true">
+            <div class="preview-modal">
+                <h3 id="speech-preview-title">Spracheingabe – Vorschau</h3>
+                <p class="preview-hint">Pr&#252;fe die erkannten Daten und passe sie ggf. an, bevor sie &#252;bernommen werden.</p>
+
+                <div class="preview-raw">
+                    <label>Erkannter Text:</label>
+                    <div id="preview-raw-text" class="preview-raw-text"></div>
+                </div>
+
+                <div class="preview-fields">
+                    <div class="preview-field-row">
+                        <div class="preview-field">
+                            <label>Datum</label>
+                            <input type="text" id="preview-datum">
+                        </div>
+                        <div class="preview-field">
+                            <label>Uhrzeit</label>
+                            <input type="text" id="preview-uhrzeit">
+                        </div>
+                    </div>
+                    <div class="preview-field">
+                        <label>Beteiligte</label>
+                        <input type="text" id="preview-beteiligte">
+                    </div>
+                    <div class="preview-field">
+                        <label>Betreff</label>
+                        <input type="text" id="preview-betreff">
+                    </div>
+                    <div class="preview-field">
+                        <label>Notizen</label>
+                        <textarea id="preview-notizen" rows="4"></textarea>
+                    </div>
+                    <div class="preview-field">
+                        <label>N&#228;chste Schritte</label>
+                        <textarea id="preview-schritte" rows="3"></textarea>
+                    </div>
+                </div>
+
+                <div class="preview-buttons">
+                    <button class="btn btn-primary" onclick="applyPreview()">&#10003; &#220;bernehmen</button>
+                    <button class="btn btn-secondary" onclick="closePreview()">Abbrechen</button>
+                </div>
+            </div>
+        </div>
 
         <!-- ============================================================ -->
         <!-- AUSGABEBEREICH -->
@@ -101,15 +238,35 @@
         <section id="output-section" class="card output-section" style="display: none;">
             <div class="output-header">
                 <h2>Dokumententwurf</h2>
-                <button class="btn btn-copy" onclick="copyText()">
-                    &#128203; Text kopieren
-                </button>
+                <div class="output-header-buttons">
+                    <button class="btn btn-copy" onclick="copyText()">
+                        &#128203; Text kopieren
+                    </button>
+                    <button id="btn-pdf" class="btn btn-pdf" onclick="downloadPDF()">
+                        &#128196; PDF herunterladen
+                    </button>
+                    <button id="btn-docx" class="btn btn-docx" onclick="downloadDOCX()">
+                        &#128221; Word herunterladen
+                    </button>
+                </div>
             </div>
 
             <!-- KI-Hinweis -->
             <div class="ai-notice">
                 &#9888;&#65039; <strong>KI-generierter Entwurf</strong> – vor Ablage fachlich prüfen.
                 Dieses Dokument wurde automatisch erstellt und ersetzt keine fachliche Prüfung.
+            </div>
+
+            <!-- Live-Vorschau im LRA-Briefbogen-Stil -->
+            <div class="preview-paper">
+                <div class="preview-paper-header">
+                    <img class="preview-paper-logo" src="static/lra_logo.jpg" alt="Landratsamt Rosenheim">
+                    <div class="preview-paper-meta">
+                        Gz.: ____<br>
+                        <span id="preview-paper-date"></span>
+                    </div>
+                </div>
+                <div id="preview-paper-title" class="preview-paper-title">AKTENVERMERK</div>
             </div>
 
             <!-- Editierbares Textfeld -->

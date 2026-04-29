@@ -1,57 +1,199 @@
 """
-ai_interface.py – KI-Schnittstelle (Platzhalter für spätere LLM-Anbindung)
+ai_interface.py – KI-Schnittstelle mit drei Pfaden
 
-Dieses Modul kapselt die gesamte KI-Logik.
-Aktuell wird eine regelbasierte Textgenerierung verwendet.
-Später kann hier ein lokales LLM (z.B. Ollama, llama.cpp) oder
-eine API (z.B. OpenAI, Anthropic) angebunden werden.
+Reihenfolge der Versuche (priorisiert):
+1. Groq Cloud-API (wenn die Umgebungsvariable GROQ_API_KEY gesetzt ist)
+   – wird in der Render-/Workshop-Demo genutzt, schnell (~2 s).
+2. Lokales Ollama (wenn unter http://localhost:11434 erreichbar)
+   – datenschutzkonform, für die Lokal-Variante.
+3. Regelbasierte Generierung
+   – funktioniert immer, deterministisch, ohne Internet.
 
-Architektur:
-- generate_document() ist die einzige öffentliche Funktion
-- Intern wird entschieden, ob Mock oder echtes LLM genutzt wird
-- Das Backend ruft nur diese Funktion auf → Austausch ohne Codeänderung möglich
+Die einzige öffentliche Funktion ist generate_document().
 """
 
+import logging
+import os
+import requests
+
+logger = logging.getLogger(__name__)
+
 # ============================================================================
-# KONFIGURATION – Hier einstellen, welche KI-Engine verwendet wird
+# KONFIGURATION
 # ============================================================================
 
-# Auf "llm" umstellen, sobald ein echtes Modell angebunden ist
-AI_MODE = "mock"  # "mock" = regelbasiert, "llm" = echtes Sprachmodell
+# --- Groq (Cloud) ---
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL   = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_TIMEOUT = 60
 
+# --- Ollama (Lokal) ---
+OLLAMA_URL     = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
+OLLAMA_MODEL   = os.environ.get("OLLAMA_MODEL", "llama3.2")
+OLLAMA_TIMEOUT = 120
+
+
+# ============================================================================
+# ÖFFENTLICHE FUNKTION
+# ============================================================================
 
 def generate_document(doc_type: str, data: dict) -> str:
-    """
-    Hauptfunktion: Erzeugt einen Dokumententwurf.
+    """Hauptfunktion: erzeugt einen Dokumententwurf.
+    Probiert Groq → Ollama → Regel-Fallback in dieser Reihenfolge."""
+    prompt = _build_prompt(doc_type, data)
 
-    Parameter:
-        doc_type: "aktenvermerk", "telefonnotiz" oder "besprechungsprotokoll"
-        data: Dict mit den Eingabefeldern (datum, uhrzeit, beteiligte, etc.)
+    # 1. Groq versuchen (nur wenn API-Key vorhanden)
+    if GROQ_API_KEY:
+        try:
+            return _generate_with_groq(prompt)
+        except Exception as e:
+            logger.warning("Groq-Aufruf fehlgeschlagen, versuche Ollama: %s", e)
 
-    Rückgabe:
-        Formatierter Dokumenttext als String
-    """
-    if AI_MODE == "llm":
-        return _generate_with_llm(doc_type, data)
-    else:
-        return _generate_with_rules(doc_type, data)
+    # 2. Lokales Ollama versuchen
+    try:
+        return _generate_with_ollama(prompt)
+    except Exception as e:
+        logger.info("Ollama nicht erreichbar, nutze Regel-Fallback: %s", e)
+
+    # 3. Regelbasierter Fallback
+    return _generate_with_rules(doc_type, data)
 
 
 # ============================================================================
-# REGELBASIERTE GENERIERUNG (aktuell aktiv)
+# GROQ (Cloud, OpenAI-kompatible API)
+# ============================================================================
+
+def _generate_with_groq(prompt: str) -> str:
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type":  "application/json",
+    }
+    payload = {
+        "model": GROQ_MODEL,
+        "messages": [
+            {"role": "system",
+             "content": "Du bist ein Assistent für den öffentlichen Dienst in Deutschland und formulierst Verwaltungsdokumente im sachlichen, behördlichen Stil. Du erfindest niemals Fakten, die nicht in den Eingabedaten stehen."},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.4,
+        "max_tokens":  2048,
+        "stream":      False,
+    }
+
+    response = requests.post(GROQ_URL, json=payload, headers=headers, timeout=GROQ_TIMEOUT)
+    response.raise_for_status()
+    result = response.json()
+
+    text = result["choices"][0]["message"]["content"].strip()
+    if not text:
+        raise ValueError("Groq lieferte leeren Text")
+    return text
+
+
+# ============================================================================
+# OLLAMA (Lokal)
+# ============================================================================
+
+def _generate_with_ollama(prompt: str) -> str:
+    response = requests.post(
+        OLLAMA_URL,
+        json={
+            "model":   OLLAMA_MODEL,
+            "prompt":  prompt,
+            "stream":  False,
+            "options": {"temperature": 0.4, "num_predict": 2048},
+        },
+        timeout=OLLAMA_TIMEOUT,
+    )
+    response.raise_for_status()
+    text = response.json().get("response", "").strip()
+    if not text:
+        raise ValueError("Ollama lieferte leeren Text")
+    return text
+
+
+# ============================================================================
+# PROMPT-AUFBAU
+# ============================================================================
+
+def _build_prompt(doc_type: str, data: dict) -> str:
+    """Erstellt einen optimierten Prompt für das LLM."""
+    type_labels = {
+        "aktenvermerk":          "einen formellen Aktenvermerk",
+        "telefonnotiz":          "eine kompakte Telefonnotiz",
+        "besprechungsprotokoll": "ein strukturiertes Besprechungsprotokoll",
+    }
+
+    type_structures = {
+        "aktenvermerk": """Struktur:
+- Kopfzeile mit Datum, Verfasser, Betreff
+- 1. ANLASS (kurzer Einleitungssatz)
+- 2. SACHVERHALT (Notizen als Fließtext formulieren)
+- 3. ERGEBNIS / BEWERTUNG
+- 4. WEITERE VERANLASSUNG (nächste Schritte)
+- Fußzeile mit Datum und Verfasser""",
+
+        "telefonnotiz": """Struktur:
+- Kopfzeile mit Datum, Uhrzeit, Gesprächspartner, Betreff
+- GESPRÄCHSINHALT (Notizen als zusammenhängenden Text formulieren)
+- ERGEBNIS
+- WIEDERVORLAGE / NÄCHSTE SCHRITTE
+- Fußzeile mit Datum und Uhrzeit""",
+
+        "besprechungsprotokoll": """Struktur:
+- Kopfzeile mit Datum, Uhrzeit, Teilnehmer, Thema
+- 1. TAGESORDNUNG / THEMA
+- 2. BESPRECHUNGSINHALT (Notizen ausformulieren)
+- 3. ERGEBNISSE / BESCHLÜSSE
+- 4. TO-DOS / NÄCHSTE SCHRITTE (nummeriert)
+- Fußzeile mit Datum und Teilnehmern""",
+    }
+
+    datum             = data.get("datum")              or "nicht angegeben"
+    uhrzeit           = data.get("uhrzeit")            or "nicht angegeben"
+    beteiligte        = data.get("beteiligte")         or "nicht angegeben"
+    betreff           = data.get("betreff")            or "nicht angegeben"
+    notizen           = data.get("notizen")            or "keine"
+    naechste_schritte = data.get("naechste_schritte")  or "keine"
+
+    return f"""Du bist ein Assistent für den öffentlichen Dienst in Deutschland.
+Erstelle {type_labels.get(doc_type, "ein Dokument")} im sachlichen Verwaltungsstil.
+
+{type_structures.get(doc_type, "")}
+
+Eingabedaten:
+- Datum: {datum}
+- Uhrzeit: {uhrzeit}
+- Beteiligte: {beteiligte}
+- Betreff: {betreff}
+- Notizen/Stichpunkte: {notizen}
+- Nächste Schritte: {naechste_schritte}
+
+Wichtige Regeln:
+- Schreibe auf Deutsch in sachlichem, behördlichem Sprachstil.
+- Formuliere die Stichpunkte zu vollständigen Sätzen aus.
+- ERFINDE KEINE INHALTE, die nicht in den Eingabedaten stehen. Wenn ein Detail fehlt, lasse es weg oder verweise sachlich auf "nicht angegeben".
+- Keine juristisch bindenden Zusagen formulieren.
+- Keine Entscheidungen vorwegnehmen.
+- Trennlinien mit "=" und "-" Zeichen verwenden.
+- Am Ende: "Dokumentenstatus: Entwurf" einfügen.
+- Gib NUR das fertige Dokument aus, keine Erklärungen davor oder danach."""
+
+
+# ============================================================================
+# REGELBASIERTE GENERIERUNG (Fallback)
 # ============================================================================
 
 def _generate_with_rules(doc_type: str, data: dict) -> str:
     """Regelbasierte Textgenerierung ohne KI."""
+    datum             = data.get("datum")             or ""
+    uhrzeit           = data.get("uhrzeit")           or ""
+    beteiligte        = data.get("beteiligte")        or ""
+    betreff           = data.get("betreff")           or ""
+    naechste_schritte = data.get("naechste_schritte") or ""
+    notizen           = data.get("notizen")           or ""
 
-    datum = data.get("datum", "")
-    uhrzeit = data.get("uhrzeit", "")
-    beteiligte = data.get("beteiligte", "")
-    betreff = data.get("betreff", "")
-    naechste_schritte = data.get("naechste_schritte", "")
-    notizen = data.get("notizen", "")
-
-    # Notizen aufbereiten: Stichpunkte zu Fließtext
     notizen_text = _format_notes(notizen)
 
     if doc_type == "aktenvermerk":
@@ -65,19 +207,13 @@ def _generate_with_rules(doc_type: str, data: dict) -> str:
 
 
 def _format_notes(notizen: str) -> str:
-    """Formatiert Rohnotizen zu lesbarem Text."""
     if not notizen.strip():
         return "Keine weiteren Angaben."
-
     lines = [line.strip() for line in notizen.strip().splitlines() if line.strip()]
-
     if len(lines) == 1:
         return lines[0]
-
-    # Mehrere Stichpunkte als Aufzählung
     formatted = []
     for line in lines:
-        # Vorhandene Aufzählungszeichen beibehalten oder hinzufügen
         if not line.startswith(("-", "•", "–", "*")):
             line = f"– {line}"
         formatted.append(line)
@@ -85,7 +221,6 @@ def _format_notes(notizen: str) -> str:
 
 
 def _build_aktenvermerk(datum, beteiligte, betreff, notizen, schritte) -> str:
-    """Erstellt einen formellen Aktenvermerk."""
     text = "AKTENVERMERK\n"
     text += "=" * 50 + "\n\n"
     text += f"Datum:       {datum}\n"
@@ -122,7 +257,6 @@ def _build_aktenvermerk(datum, beteiligte, betreff, notizen, schritte) -> str:
 
 
 def _build_telefonnotiz(datum, uhrzeit, beteiligte, betreff, notizen, schritte) -> str:
-    """Erstellt eine kompakte Telefonnotiz."""
     text = "TELEFONNOTIZ\n"
     text += "=" * 50 + "\n\n"
     text += f"Datum:             {datum}\n"
@@ -155,7 +289,6 @@ def _build_telefonnotiz(datum, uhrzeit, beteiligte, betreff, notizen, schritte) 
 
 
 def _build_protokoll(datum, uhrzeit, beteiligte, betreff, notizen, schritte) -> str:
-    """Erstellt ein strukturiertes Besprechungsprotokoll."""
     text = "BESPRECHUNGSPROTOKOLL\n"
     text += "=" * 50 + "\n\n"
     text += f"Datum:        {datum}\n"
@@ -191,89 +324,3 @@ def _build_protokoll(datum, uhrzeit, beteiligte, betreff, notizen, schritte) -> 
     text += "Dokumentenstatus: Entwurf – zur Freigabe"
 
     return text
-
-
-# ============================================================================
-# LLM-ANBINDUNG (Platzhalter für spätere Implementierung)
-# ============================================================================
-#
-# ANLEITUNG FÜR DIE LLM-INTEGRATION:
-#
-# 1. Option A: Lokales LLM (z.B. Ollama)
-#    - Ollama installieren: https://ollama.ai
-#    - Modell laden: ollama pull llama3
-#    - URL unten anpassen auf http://localhost:11434/api/generate
-#
-# 2. Option B: API-Anbindung (z.B. OpenAI, Anthropic)
-#    - API-Key als Umgebungsvariable setzen
-#    - Entsprechende Python-Bibliothek installieren
-#
-# 3. AI_MODE oben auf "llm" umstellen
-#
-# DATENSCHUTZ-HINWEIS:
-# Bei Verwendung externer APIs werden Daten an Dritte übermittelt.
-# Für den öffentlichen Dienst wird ein lokales LLM empfohlen.
-# ============================================================================
-
-def _generate_with_llm(doc_type: str, data: dict) -> str:
-    """
-    Platzhalter für echte LLM-Generierung.
-
-    TODO: Hier die gewünschte LLM-Bibliothek importieren und nutzen.
-    Beispiel für Ollama:
-
-        import requests
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "llama3",
-                "prompt": _build_prompt(doc_type, data),
-                "stream": False
-            }
-        )
-        return response.json()["response"]
-
-    Beispiel für Anthropic Claude API:
-
-        from anthropic import Anthropic
-        client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=1024,
-            messages=[{"role": "user", "content": _build_prompt(doc_type, data)}]
-        )
-        return message.content[0].text
-    """
-    # Fallback auf regelbasierte Generierung, bis LLM konfiguriert ist
-    return _generate_with_rules(doc_type, data)
-
-
-def _build_prompt(doc_type: str, data: dict) -> str:
-    """
-    Erstellt einen Prompt für das LLM.
-    Wird erst genutzt, wenn AI_MODE auf "llm" steht.
-    """
-    type_labels = {
-        "aktenvermerk": "einen formellen Aktenvermerk",
-        "telefonnotiz": "eine kompakte Telefonnotiz",
-        "besprechungsprotokoll": "ein strukturiertes Besprechungsprotokoll"
-    }
-
-    prompt = f"""Du bist ein Assistent für den öffentlichen Dienst.
-Erstelle {type_labels.get(doc_type, 'ein Dokument')} im sachlichen Verwaltungsstil.
-
-Eingabedaten:
-- Datum: {data.get('datum', 'nicht angegeben')}
-- Uhrzeit: {data.get('uhrzeit', 'nicht angegeben')}
-- Beteiligte: {data.get('beteiligte', 'nicht angegeben')}
-- Betreff: {data.get('betreff', 'nicht angegeben')}
-- Notizen: {data.get('notizen', 'keine')}
-- Nächste Schritte: {data.get('naechste_schritte', 'keine')}
-
-Wichtige Regeln:
-- Sachlicher, behördlicher Sprachstil
-- Keine juristisch bindenden Zusagen formulieren
-- Keine Entscheidungen vorwegnehmen
-- Hinweis auf Entwurfsstatus einfügen
-"""
-    return prompt

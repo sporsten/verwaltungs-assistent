@@ -56,7 +56,7 @@ def validate_input(doc_type: str, data: dict) -> list:
 
     required = REQUIRED_FIELDS.get(doc_type, {})
     for field, message in required.items():
-        value = data.get(field, "").strip()
+        value = (data.get(field) or "").strip()
         if not value:
             errors.append(message)
 
@@ -99,7 +99,7 @@ EXAMPLE_DATA = {
         "uhrzeit": "10:30",
         "beteiligte": "Frau Schmidt, Bürgeramt Süd",
         "betreff": "Rückfrage zur Bearbeitungsdauer Antrag Nr. 2024-4471",
-        "notizen": "Frau Schmidt fragt nach dem Stand des Antrags\nAntrag liegt seit 4 Wochen in Prüfung\nFehlende Unterlage: Meldebescheinigung\nBittum Rückruf nach Klärung",
+        "notizen": "Frau Schmidt fragt nach dem Stand des Antrags\nAntrag liegt seit 4 Wochen in Prüfung\nFehlende Unterlage: Meldebescheinigung\nBittet um Rückruf nach Klärung",
         "naechste_schritte": "Fehlende Unterlage bei Antragsteller anfordern\nRückruf an Frau Schmidt bis Freitag"
     },
     "besprechungsprotokoll": {

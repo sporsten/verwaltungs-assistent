@@ -22,13 +22,28 @@ Die Anwendung erstellt auf Basis von Stichpunkten einen formulierten Entwurf im 
 - **Niedrige Einstiegshürde** – einfache Bedienung ohne Schulungsaufwand
 - **Mensch bleibt in Kontrolle** – KI erstellt nur einen Entwurf
 
-## Datenschutz-Hinweis
+## Zwei Betriebsmodi
 
-- Die Anwendung läuft **vollständig lokal** auf dem eigenen Rechner
-- Es werden **keine Daten an externe Server** übermittelt
-- Keine Cloud-Anbindung, keine Registrierung, keine Nutzerdaten
-- Bei einer späteren LLM-Anbindung wird ein **lokales Modell** empfohlen (z. B. Ollama), um den Datenschutz zu gewährleisten
-- Die Architektur ist so gestaltet, dass der Datenschutz auch bei Erweiterungen gewahrt bleibt
+Diese Anwendung unterstützt bewusst zwei Betriebsmodi:
+
+### 1. Workshop-Demo (öffentliche Cloud, [verwaltungs-assistent.onrender.com](https://verwaltungs-assistent.onrender.com))
+
+- Gehostet auf Render Free Tier (Cloud-Dienst, EU/US-Region).
+- Zur **schnellen Erprobung im Workshop** durch externe Tester:innen ohne Installationsaufwand.
+- KI-Generierung läuft über eine **kostenfreie LLM-API (Groq)** – Daten verlassen den lokalen Rechner.
+- Spracheingabe nutzt die **Web Speech API des Browsers** (in Chrome ggf. Google-Backend).
+- **Nur fingierte Beispieldaten verwenden!** Keine echten personenbezogenen Vorgangsdaten.
+- Cold-Start: Der Server schläft nach 15 Min Inaktivität ein und braucht ca. 50 Sek. zum Aufwachen.
+
+### 2. Lokale Variante (produktionsnaher Datenschutz)
+
+- Komplett auf dem eigenen Rechner – **keine Daten verlassen das Gerät**.
+- LLM-Generierung über **lokales Ollama** (z. B. `llama3.2`).
+- Spracherkennung über **lokales `faster-whisper`-Modell**.
+- Templates werden lokal als JSON gespeichert.
+- Empfohlene Variante für reale Verwaltungsdaten und für den dauerhaften Einsatz.
+
+> **Wichtig für die Projektstudie:** Die Cloud-Demo dient nur dem niedrigschwelligen Test im Workshop. Im realen Verwaltungsbetrieb müsste die lokale Variante (ggf. mit DMS-Anbindung, GoBD-konformer Ablage und Aktenzeichenvergabe) eingesetzt werden. Siehe Abschnitt „Mögliche Erweiterungen".
 
 ---
 
@@ -98,9 +113,9 @@ Die KI-Schnittstelle ist bewusst als eigenständiges Modul umgesetzt. Aktuell ar
 
 | Feature | Beschreibung |
 |---|---|
-| Lokales LLM | Anbindung z. B. über Ollama für natürlichere Textgenerierung |
-| Spracheingabe | Diktierfunktion über Web Speech API |
-| PDF-Export | Dokumente als PDF herunterladen |
+| ~~Lokales LLM~~ | *(umgesetzt – Ollama mit llama3.2)* |
+| ~~Spracheingabe~~ | *(umgesetzt – lokale Erkennung mit faster-whisper)* |
+| ~~PDF-Export~~ | *(umgesetzt – fpdf2)* |
 | Vorlagen | Eigene Dokumentvorlagen speichern und laden |
 | Versionierung | Änderungshistorie für Dokumente |
 | Mehrsprachigkeit | Unterstützung weiterer Sprachen |
@@ -115,7 +130,16 @@ Die KI-Schnittstelle ist bewusst als eigenständiges Modul umgesetzt. Aktuell ar
 |---|---|---|
 | Backend | Python + Flask | Minimaler Aufwand, schnell aufgesetzt, gute Erweiterbarkeit |
 | Frontend | HTML + CSS + JS | Keine Build-Tools nötig, sofort lauffähig |
-| KI | Regelbasiert (Mock) | Prototyp ohne externe Abhängigkeit, LLM-ready |
+| KI-Text | Ollama (llama3.2) | Lokales LLM, datenschutzkonform, mit regelbasiertem Fallback |
+| KI-Sprache | faster-whisper | Lokale Spracherkennung, kein Cloud-Upload |
+
+---
+
+---
+
+## Lizenz- und Bildrechte
+
+Das LRA-Logo ist Eigentum des Landratsamts Rosenheim und wird im Prototyp nur zu Demonstrationszwecken im Rahmen der Projektstudie verwendet. Eine kommerzielle Nutzung oder Weitergabe des Logos ist ohne ausdrückliche Genehmigung des Landratsamts Rosenheim nicht gestattet.
 
 ---
 

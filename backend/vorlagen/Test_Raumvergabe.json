@@ -1,0 +1,12 @@
+{
+  "name": "Test Raumvergabe",
+  "doc_type": "aktenvermerk",
+  "fields": {
+    "datum": "12.03.2026",
+    "uhrzeit": "",
+    "beteiligte": "Müller, Sachgebiet 3.1",
+    "betreff": "Überprüfung der Raumvergabe im Verwaltungsgebäude II",
+    "notizen": "Raumvergabe für Q2 steht noch aus\nZwei Abteilungen haben Überschneidungen gemeldet\nGebäudemanagement wurde informiert\nVorschlag: Gemeinsamer Termin zur Abstimmung",
+    "naechste_schritte": "Termin mit Gebäudemanagement bis KW 12 vereinbaren\nRaumplan aktualisieren\nRückmeldung an Abteilungen 2.3 und 4.1"
+  }
+}

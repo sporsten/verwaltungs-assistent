@@ -1,2 +1,12 @@
+# Wird von Render verwendet (siehe render.yaml).
+# Bewusst OHNE faster-whisper – das Modell passt nicht in Render Free Tier
+# (~1,5 GB Modell vs. 512 MB RAM-Limit). In der Cloud-Demo wird stattdessen
+# die Web Speech API des Browsers genutzt; lokal kommt faster-whisper aus
+# backend/requirements.txt zum Einsatz.
+
 flask==3.1.0
 gunicorn==23.0.0
+requests>=2.31.0
+fpdf2>=2.8.0
+python-docx>=1.1.0
+python-dotenv>=1.0.0
